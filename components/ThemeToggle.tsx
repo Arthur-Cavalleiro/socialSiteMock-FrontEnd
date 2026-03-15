@@ -10,9 +10,9 @@ export function ThemeToggle() {
       type="button"
       variant="ghost"
       onClick={toggleTheme}
-      aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+      aria-label={theme === "dark" ? "Activate light mode" : "Activate dark mode"}
     >
-      {theme === "dark" ? "Claro" : "Escuro"}
+      {theme === "dark" ? "Light" : "Dark"}
     </Button>
   );
 }
