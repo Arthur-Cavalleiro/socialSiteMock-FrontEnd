@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Social Site Mock — Frontend
 
-## Getting Started
+Interface Next.js para o mock de rede social: listagem e CRUD de posts, usuário persistido e tema claro/escuro.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Tecnologia | Uso |
+|------------|-----|
+| **Next.js 16** | App Router, SSR/CSR |
+| **React 19** | UI |
+| **TypeScript** | Tipagem |
+| **Tailwind CSS 4** | Estilos |
+| **TanStack React Query** | Cache e mutações (posts) |
+| **date-fns** | Formatação de datas |
+
+---
+
+## Variável de ambiente
+
+A API do backend é acessada via URL configurável. Crie um arquivo **`.env.local`** na raiz do frontend:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/careers/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Obrigatória:** a aplicação lança erro em runtime se `NEXT_PUBLIC_API_URL` não estiver definida.
+- O prefixo `NEXT_PUBLIC_` é necessário para expor a variável no browser.
+- Em produção, use a URL do backend (ex.: `https://api.seudominio.com/careers/`).
+- **Não commitar** `.env.local` — ela já está no `.gitignore` (`.env*`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estrutura do projeto
 
-## Learn More
+```
+frontend/
+├── app/
+│   ├── globals.css
+│   ├── layout.tsx          # Root layout, fontes, Providers
+│   ├── page.tsx             # Entrada: SignUp ou MainScreen
+│   └── providers.tsx        # QueryClient + Theme + User
+├── components/
+│   ├── Button.tsx
+│   ├── DeleteModal.tsx
+│   ├── EditModal.tsx
+│   ├── LogoutConfirmModal.tsx
+│   ├── MainScreen.tsx       # Lista de posts, formulário, modais
+│   ├── PostCard.tsx
+│   ├── SignUpModal.tsx
+│   └── ThemeToggle.tsx
+├── context/
+│   ├── ThemeContext.tsx     # Tema light/dark + localStorage
+│   └── UserContext.tsx      # Username + localStorage
+├── lib/
+│   ├── api.ts               # getPosts, createPost, updatePost, deletePost
+│   └── types.ts             # Interface Post
+├── public/
+├── .env.local               # (não versionado) NEXT_PUBLIC_API_URL
+├── package.json
+└── README.md
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Arquitetura
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Fluxo de entrada
 
-## Deploy on Vercel
+1. **`layout.tsx`** — Carrega fontes (Geist) e envolve a árvore em `<Providers>`.
+2. **`providers.tsx`** — Encadeia: `QueryClientProvider` → `ThemeProvider` → `UserProvider`.
+3. **`page.tsx`** — Se não houver usuário em contexto, exibe `SignUpModal`; caso contrário, exibe `MainScreen`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Camadas
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Camada | Responsabilidade |
+|--------|-------------------|
+| **app/** | Rotas e layout; página inicial decide entre sign-up e tela principal. |
+| **context/** | Estado global: tema (light/dark) e username; persistência em `localStorage`. |
+| **lib/** | Cliente HTTP (fetch) e tipos; base URL da API via `NEXT_PUBLIC_API_URL`. |
+| **components/** | UI: modais (sign-up, editar, excluir, logout), lista de posts, formulário de novo post, toggle de tema. |
+
+### Contextos
+
+- **UserContext** — `username` (ou `null`). Hydratação a partir de `localStorage` (`codeleap_username`) para evitar flash; `setUsername` e `logout` atualizam estado e storage.
+- **ThemeContext** — `theme` (light/dark), `setTheme`, `toggleTheme`. Valor persistido em `localStorage` (`codeleap_theme`); uso de `useSyncExternalStore` para compatibilidade com SSR; classe `dark` em `<html>` para Tailwind.
+
+### Dados (posts)
+
+- **TanStack Query** — Listagem com `useQuery` (queryKey `["posts"]`); create/update/delete com `useMutation` e `invalidateQueries` para refetch.
+- **lib/api.ts** — Funções que chamam o backend: `getPosts`, `createPost`, `updatePost`, `deletePost`. Base URL normalizada (com barra final).
+
+---
+
+## Implementações principais
+
+- **Sign-up** — Modal para informar username; salvo em contexto e `localStorage`; sem backend de auth (mock).
+- **Listagem de posts** — Cards com título, conteúdo, autor, data (formatada com date-fns); loading e lista vazia tratados.
+- **Criar post** — Formulário (título + conteúdo); username vem do contexto; mutation e invalidação da lista.
+- **Editar post** — Modal com título e conteúdo editáveis; PATCH no backend; apenas título e conteúdo alteráveis.
+- **Excluir post** — Modal de confirmação; DELETE no backend; lista atualizada após sucesso.
+- **Logout** — Modal de confirmação; limpa username no contexto e no `localStorage`; volta para o sign-up.
+- **Tema** — Toggle light/dark; persistido; classe `dark` no documento para estilos Tailwind.
+
+---
+
+## Como rodar
+
+```bash
+cd frontend
+# Crie .env.local com NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/careers/
+npm install
+npm run dev
+```
+
+Acesse `http://localhost:3000`. O backend deve estar rodando na URL configurada em `NEXT_PUBLIC_API_URL` (ex.: `http://127.0.0.1:8000/careers/`).
+
+Build para produção:
+
+```bash
+npm run build
+npm start
+```
